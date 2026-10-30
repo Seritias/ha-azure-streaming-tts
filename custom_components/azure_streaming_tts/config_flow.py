@@ -35,7 +35,6 @@ from .const import (
     DEFAULT_CONTOUR,
     DEFAULT_PITCH,
     DEFAULT_RATE,
-    DEFAULT_REGION,
     DEFAULT_VOICE,
     DEFAULT_VOLUME,
     DOMAIN,
@@ -45,13 +44,13 @@ from .speech import AzureAuthError, AzureSpeechError, AzureVoice, async_list_voi
 PERCENT = vol.All(vol.Coerce(int), vol.Range(min=-100, max=100))
 
 
-def _connection_schema(region: str) -> vol.Schema:
+def _connection_schema(region: str | None = None) -> vol.Schema:
     return vol.Schema(
         {
             vol.Required(CONF_API_KEY): TextSelector(
                 TextSelectorConfig(type=TextSelectorType.PASSWORD)
             ),
-            vol.Required(CONF_REGION, default=region): str,
+            vol.Required(CONF_REGION, default=region or vol.UNDEFINED): str,
         }
     )
 
@@ -67,7 +66,9 @@ def _voice_schema(voices: list[AzureVoice], current: Mapping[str, Any]) -> vol.S
     return vol.Schema(
         {
             vol.Required(
-                CONF_SHORT_NAME, default=current.get(CONF_SHORT_NAME, DEFAULT_VOICE)
+                CONF_SHORT_NAME,
+                default=current.get(CONF_SHORT_NAME)
+                or (DEFAULT_VOICE if any(v.short_name == DEFAULT_VOICE for v in voices) else vol.UNDEFINED),
             ): SelectSelector(
                 SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)
             ),
@@ -138,7 +139,7 @@ class AzureStreamingTtsConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._voices = voices
                 return await self.async_step_voice()
         return self.async_show_form(
-            step_id="user", data_schema=_connection_schema(DEFAULT_REGION), errors=errors
+            step_id="user", data_schema=_connection_schema(), errors=errors
         )
 
     async def async_step_voice(

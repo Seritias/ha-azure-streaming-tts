@@ -22,7 +22,7 @@ from speech import (  # noqa: E402
     async_list_voices,
 )
 
-NEURO = VoiceSettings("en-us", "Female", "AshleyNeural", "0%", "100%", "+25%", "")
+SAMPLE = VoiceSettings("en-us", "Female", "AshleyNeural", "0%", "100%", "+25%", "")
 
 
 def core_integration_body(text: str) -> bytes:
@@ -46,17 +46,17 @@ def core_integration_body(text: str) -> bytes:
 
 def test_ssml_is_byte_identical_to_core_integration():
     text = "Six lights are on. Very ambient."
-    assert NEURO.ssml(text) == core_integration_body(text)
+    assert SAMPLE.ssml(text) == core_integration_body(text)
 
 
 def test_ssml_carries_the_canonical_voice():
-    body = NEURO.ssml("Hi").decode()
+    body = SAMPLE.ssml("Hi").decode()
     assert "(en-US, AshleyNeural)" in body
     assert 'pitch="+25%"' in body
 
 
 def test_ssml_escapes_text_the_core_library_would_crash_on():
-    assert b"Q&amp;A &lt;now&gt;" in NEURO.ssml("Q&A <now>")
+    assert b"Q&amp;A &lt;now&gt;" in SAMPLE.ssml("Q&A <now>")
 
 
 def split(*deltas: str) -> list[str]:
@@ -131,7 +131,7 @@ class FakeAzure:
         if self.status != 200:
             return web.Response(status=self.status)
         return web.json_response(
-            [{"ShortName": "en-US-AshleyNeural", "DisplayName": "Ashley", "Locale": "en-US", "Gender": "Female", "Name": NEURO.voice_name}]
+            [{"ShortName": "en-US-AshleyNeural", "DisplayName": "Ashley", "Locale": "en-US", "Gender": "Female", "Name": SAMPLE.voice_name}]
         )
 
 
@@ -149,7 +149,7 @@ async def run_azure(monkeypatch):
         servers.append(server)
         sessions.append(session)
         monkeypatch.setattr(speech, "_service_url", lambda _: str(server.make_url("")).rstrip("/"))
-        return AzureSpeechClient(session, "secret", "region", NEURO)
+        return AzureSpeechClient(session, "secret", "region", SAMPLE)
 
     yield start
     for session in sessions:
@@ -227,4 +227,4 @@ async def test_voice_list_rebuilds_the_exact_voice_name(run_azure):
     assert voice.voice == "AshleyNeural"
     assert voice.gender == "Female"
     rebuilt = VoiceSettings(voice.locale.lower(), voice.gender, voice.voice, "0%", "100%", "+25%", "")
-    assert rebuilt.ssml("Hi") == NEURO.ssml("Hi")
+    assert rebuilt.ssml("Hi") == SAMPLE.ssml("Hi")

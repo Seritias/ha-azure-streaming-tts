@@ -3,6 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to Azure Speech",
+        "description": "Use the key and region from your Azure Speech resource, for example `eastus` or `westeurope`.",
         "data": {
           "api_key": "Azure Speech key",
           "region": "Region"

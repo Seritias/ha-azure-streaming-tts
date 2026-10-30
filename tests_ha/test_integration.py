@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 import pytest
+import voluptuous as vol
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -19,10 +20,11 @@ REGION = "germanywestcentral"
 HOST = f"https://{REGION}.tts.speech.microsoft.com/cognitiveservices"
 VOICES = [
     {"ShortName": "en-US-AshleyNeural", "DisplayName": "Ashley", "Locale": "en-US", "Gender": "Female"},
+    {"ShortName": "en-US-JennyNeural", "DisplayName": "Jenny", "Locale": "en-US", "Gender": "Female"},
     {"ShortName": "en-GB-RyanNeural", "DisplayName": "Ryan", "Locale": "en-GB", "Gender": "Male"},
 ]
-NEURO_FORM = {"short_name": "en-US-AshleyNeural", "pitch": "+25%", "rate": 0, "volume": 100, "contour": ""}
-NEURO_OPTIONS = {**NEURO_FORM, "language": "en-us", "gender": "Female", "voice": "AshleyNeural"}
+CUSTOM_FORM = {"short_name": "en-US-AshleyNeural", "pitch": "+25%", "rate": 0, "volume": 100, "contour": ""}
+CUSTOM_OPTIONS = {**CUSTOM_FORM, "language": "en-us", "gender": "Female", "voice": "AshleyNeural"}
 
 
 @pytest.fixture
@@ -39,7 +41,7 @@ async def entry(hass: HomeAssistant, azure) -> MockConfigEntry:
         domain=DOMAIN,
         title="Azure AshleyNeural",
         data={CONF_API_KEY: "secret", CONF_REGION: REGION},
-        options=NEURO_OPTIONS,
+        options=CUSTOM_OPTIONS,
     )
     config_entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(config_entry.entry_id)
@@ -47,20 +49,38 @@ async def entry(hass: HomeAssistant, azure) -> MockConfigEntry:
     return config_entry
 
 
-async def test_setup_from_ui_picks_neuro_defaults(hass: HomeAssistant, azure) -> None:
+async def test_setup_from_ui_saves_chosen_voice(hass: HomeAssistant, azure) -> None:
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
     assert result["step_id"] == "user"
+    region_key = next(key for key in result["data_schema"].schema if str(key) == CONF_REGION)
+    assert region_key.default is vol.UNDEFINED
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "secret", CONF_REGION: REGION}
     )
     assert result["step_id"] == "voice"
     defaults = {str(key): key.default() for key in result["data_schema"].schema}
-    assert defaults == NEURO_FORM
-    result = await hass.config_entries.flow.async_configure(result["flow_id"], NEURO_FORM)
+    assert defaults == {
+        "short_name": "en-US-JennyNeural",
+        "pitch": "default",
+        "rate": 0,
+        "volume": 0,
+        "contour": "",
+    }
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], CUSTOM_FORM)
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["options"] == NEURO_OPTIONS
+    assert result["options"] == CUSTOM_OPTIONS
     assert result["data"] == {CONF_API_KEY: "secret", CONF_REGION: REGION}
+
+
+async def test_voice_has_no_default_when_region_lacks_it(hass, aioclient_mock) -> None:
+    aioclient_mock.get(f"{HOST}/voices/list", json=[VOICES[0]])
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": "user"})
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_API_KEY: "secret", CONF_REGION: REGION}
+    )
+    voice_key = next(key for key in result["data_schema"].schema if str(key) == "short_name")
+    assert voice_key.default is vol.UNDEFINED
 
 
 @pytest.mark.parametrize(("status", "error"), [(401, {CONF_API_KEY: "invalid_auth"}), (500, {"base": "cannot_connect"})])
@@ -81,7 +101,7 @@ async def test_entity_declares_streaming(hass: HomeAssistant, entry) -> None:
     assert tts.get_engine_instance(hass, engine).async_supports_streaming_input() is True
 
 
-async def test_full_tts_path_sends_neuro_ssml_per_sentence(hass: HomeAssistant, entry, azure) -> None:
+async def test_full_tts_path_sends_chosen_voice_per_sentence(hass: HomeAssistant, entry, azure) -> None:
     stream = tts.async_create_stream(hass, "tts.azure_ashleyneural", "en-us", {tts.ATTR_PREFERRED_FORMAT: "mp3"})
     assert stream.supports_streaming_input is True
 
@@ -140,9 +160,9 @@ async def test_real_mp3_sentences_convert_to_flac_without_losing_audio(hass, ent
 async def test_options_change_voice_and_reload(hass: HomeAssistant, entry, azure) -> None:
     result = await hass.config_entries.options.async_init(entry.entry_id)
     defaults = {str(key): key.default() for key in result["data_schema"].schema}
-    assert defaults == NEURO_FORM
+    assert defaults == CUSTOM_FORM
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {**NEURO_FORM, "short_name": "en-GB-RyanNeural", "pitch": "default"}
+        result["flow_id"], {**CUSTOM_FORM, "short_name": "en-GB-RyanNeural", "pitch": "default"}
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -162,12 +182,12 @@ async def test_reconfigure_replaces_key_and_keeps_voice(hass: HomeAssistant, ent
     await hass.async_block_till_done()
     assert result["reason"] == "reconfigure_successful"
     assert entry.data[CONF_API_KEY] == "new"
-    assert entry.options == NEURO_OPTIONS
+    assert entry.options == CUSTOM_OPTIONS
     assert entry.state is ConfigEntryState.LOADED
 
 
 async def test_reconfigure_refuses_region_without_the_voice(hass, entry, aioclient_mock) -> None:
-    aioclient_mock.get("https://eastus.tts.speech.microsoft.com/cognitiveservices/voices/list", json=VOICES[1:])
+    aioclient_mock.get("https://eastus.tts.speech.microsoft.com/cognitiveservices/voices/list", json=VOICES[2:])
     result = await entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_API_KEY: "new", CONF_REGION: "eastus"}

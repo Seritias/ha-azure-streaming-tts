@@ -120,7 +120,7 @@ class AzureVoice:
 
     @property
     def voice(self) -> str:
-        """Return the name without its locale, as in AshleyNeural."""
+        """Return the name without its locale, as in JennyNeural."""
         return self.short_name.removeprefix(f"{self.locale}-")
 
 

@@ -12,8 +12,7 @@ CONF_VOICE = "voice"
 CONF_VOLUME = "volume"
 
 DEFAULT_CONTOUR = ""
-DEFAULT_PITCH = "+25%"
+DEFAULT_PITCH = "default"
 DEFAULT_RATE = 0
-DEFAULT_REGION = "germanywestcentral"
-DEFAULT_VOICE = "en-US-AshleyNeural"
-DEFAULT_VOLUME = 100
+DEFAULT_VOICE = "en-US-JennyNeural"
+DEFAULT_VOLUME = 0
