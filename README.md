@@ -42,3 +42,7 @@ pytest tests_ha
 ```
 
 `tests` covers the Azure client against a local fake server. `tests_ha` runs the UI flows and the streaming path inside a real Home Assistant, with Azure faked at the HTTP layer. Neither suite calls Azure.
+
+## License
+
+Apache License 2.0. See `LICENSE` and `NOTICE`. This project is not affiliated with or endorsed by Home Assistant or Microsoft.
