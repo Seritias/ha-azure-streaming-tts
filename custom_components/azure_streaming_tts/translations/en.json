@@ -1,0 +1,57 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Azure Speech",
+        "data": {
+          "api_key": "Azure Speech key",
+          "region": "Region"
+        }
+      },
+      "voice": {
+        "title": "Choose the voice",
+        "description": "Use the values from your `microsoft` entry in configuration.yaml to keep a voice identical.",
+        "data": {
+          "short_name": "Voice",
+          "pitch": "Pitch",
+          "rate": "Rate (%)",
+          "volume": "Volume (%)",
+          "contour": "Contour"
+        }
+      },
+      "reconfigure": {
+        "title": "Update the Azure connection",
+        "data": {
+          "api_key": "Azure Speech key",
+          "region": "Region"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach Azure in that region.",
+      "invalid_auth": "Azure rejected this key for that region.",
+      "voice_not_in_region": "This region does not offer the voice you have selected."
+    },
+    "abort": {
+      "reconfigure_successful": "The connection was updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Voice settings",
+        "data": {
+          "short_name": "Voice",
+          "pitch": "Pitch",
+          "rate": "Rate (%)",
+          "volume": "Volume (%)",
+          "contour": "Contour"
+        }
+      }
+    },
+    "abort": {
+      "cannot_connect": "Could not reach Azure in that region.",
+      "invalid_auth": "Azure rejected the saved key. Use Reconfigure to replace it."
+    }
+  }
+}
